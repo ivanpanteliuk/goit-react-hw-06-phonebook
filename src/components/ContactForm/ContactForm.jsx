@@ -1,41 +1,54 @@
-import { useState } from 'react';
-import PropTypes from 'prop-types';
 import { nanoid } from 'nanoid';
+import { useDispatch, useSelector } from 'react-redux';
+import { Notify } from 'notiflix';
+
+import { addContact } from 'redux/contacts/contactsSlice';
+import { getContacts } from 'redux/selectors';
 import { Input, Button, Form, Label } from './ContactForm.styled';
 
-function ContactForm(props) {
-  const [name, setName] = useState('');
-  const [number, setNumber] = useState('');
+const notifyOptions = {
+  width: '450px',
+  position: 'right-top',
+  distance: '20px',
+  timeout: 2000,
+  clickToClose: true,
+  fontSize: '20px',
+  cssAnimationStyle: 'zoom',
+  showOnlyTheLastOne: true,
+};
+
+Notify.init(notifyOptions);
+
+function ContactForm() {
+  const dispatch = useDispatch();
+  const contacts = useSelector(getContacts);
 
   const nameInputId = nanoid();
   const telInputId = nanoid();
 
-  const handleChange = evt => {
-    const { name, value } = evt.currentTarget;
-    switch (name) {
-      case 'name':
-        setName(value);
-        break;
-      case 'number':
-        setNumber(value);
-        break;
-
-      default:
-        break;
-    }
-  };
-
-  const resetInput = () => {
-    setName('');
-    setNumber('');
-  };
-
   const handleSubmit = evt => {
     evt.preventDefault();
 
-    props.onSubmit({ id: nanoid(), name, number });
+    const form = evt.target;
+    const name = form.elements.name.value;
+    const number = form.elements.number.value;
 
-    resetInput();
+    if (
+      contacts.some(
+        storedContact => storedContact.name.toLowerCase() === name.toLowerCase()
+      )
+    ) {
+      return Notify.failure(`"${name}" is already in contacts.`);
+    } else if (
+      contacts.some(storedContact => storedContact.number === number)
+    ) {
+      return Notify.failure(`"${number}" is already in contacts.`);
+    }
+
+    dispatch(addContact(name, number));
+    Notify.success(`"${name}" added to phonebook successfully`);
+
+    form.reset();
   };
 
   return (
@@ -45,12 +58,10 @@ function ContactForm(props) {
         id={nameInputId}
         type="text"
         name="name"
-        value={name}
         pattern="^[a-zA-Zа-яА-Я]+(([' -][a-zA-Zа-яА-Я ])?[a-zA-Zа-яА-Я]*)*$"
         title="Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan"
         required
         autoComplete="off"
-        onChange={handleChange}
       />
       <Label htmlFor={telInputId}>Number</Label>
       <Input
@@ -61,16 +72,10 @@ function ContactForm(props) {
         title="Phone number must be digits and can contain spaces, dashes, parentheses and can start with +"
         required
         autoComplete="off"
-        value={number}
-        onChange={handleChange}
       />
       <Button type="submit">Add contact</Button>
     </Form>
   );
 }
-
-ContactForm.propTypes = {
-  onSubmit: PropTypes.func.isRequired,
-};
 
 export default ContactForm;
